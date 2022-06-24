@@ -32,6 +32,7 @@ void test_simple_handling(){
         exit();
     }else {
         // parent
+        sleep(1); // avoid race condition: give the child time to call signal()
         sigsend(child_pid, SIGHUP); // send the signal type that the child expects
         //printf(1, "sigsend worked");
         wait();
@@ -95,7 +96,9 @@ void test_ignore(){
            printf(1,"FAILED\n");
            return;
        }
-       for(int i =0; i < 3;i++) {
+       signal(SIGTERM, SIG_IGN); // ignore TERMINATE
+       signal(SIGSTOP,SIG_IGN); // impossible to ignore SIGSTOP
+        for(int i =0; i < 3;i++) {
             sleep(1);
             printf(1, "[%d] child is sleeping\n", i);
        }

@@ -113,8 +113,8 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
   // TODO completed
-  for (int i = 0; i<NUMSIGNALS; i++) {
-     p->sighandler[i] = 0;
+  for (int i = 0; i<NUMSIGNALS+2; i++) {
+     p->sighandler[i] = -2;
      p->sigs_awaiting[i] = 0;
   }
   p->executing_signal = 0;
@@ -231,7 +231,7 @@ fork(void)
 
     //  TODO completed
     np->executing_signal = curproc->executing_signal;
-    for(int i = 0; i < NUMSIGNALS; i++){
+    for(int i = 0; i < NUMSIGNALS+2; i++){
         np->sigs_awaiting[i] = curproc->sigs_awaiting[i];
         np->sighandler[i] = curproc->sighandler[i];
     }

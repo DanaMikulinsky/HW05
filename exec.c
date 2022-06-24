@@ -101,9 +101,9 @@ exec(char *path, char **argv)
   curproc->tf->esp = sp;
 
   // initializing all the signal related arrays to 0's
-  for (int i = 0; i<NUMSIGNALS; i++)
+  for (int i = 0; i<NUMSIGNALS+2; i++)
   {
-      curproc->sighandler[i] = 0;
+      curproc->sighandler[i] = -2;
       curproc->sigs_awaiting[i] = 0;
   }
   curproc->executing_signal = 0;
