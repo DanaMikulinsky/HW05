@@ -8,6 +8,7 @@
 #include "spinlock.h"
 
 #include "defs.h" // for sighandler_t
+#define EMPTY_SIG ((sighandler_t) -2)
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -113,8 +114,8 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
   // TODO completed
-  for (int i = 0; i<NUMSIGNALS+2; i++) {
-     p->sighandler[i] = -2;
+  for (int i = 0; i<NUMSIGNALS; i++) {
+     p->sighandler[i] = EMPTY_SIG;
      p->sigs_awaiting[i] = 0;
   }
   p->executing_signal = 0;
@@ -129,7 +130,6 @@ void sigret(void) {
   if(p==0)
     return;
   memmove(p->tf, & (p->user_backup), sizeof(struct trapframe));
-  p->sigs_awaiting[p->executing_signal] = 0;
   p->executing_signal = 0;
   //TODO completed
 }
@@ -231,8 +231,8 @@ fork(void)
 
     //  TODO completed
     np->executing_signal = curproc->executing_signal;
-    for(int i = 0; i < NUMSIGNALS+2; i++){
-        np->sigs_awaiting[i] = curproc->sigs_awaiting[i];
+    for(int i = 0; i < NUMSIGNALS; i++){
+        np->sigs_awaiting[i] = 0;
         np->sighandler[i] = curproc->sighandler[i];
     }
   pid = np->pid;
@@ -562,10 +562,9 @@ procdump(void)
 int signal(int signum, sighandler_t  ptr){
     // TODO completed
     if(signum == SIGKILL || signum == SIGSTOP) return -1;
-    if(signum > 16 || signum < 1) return -1;
+    if(signum > 17 || signum < 0) return -1;
     struct proc *curproc = myproc();
-    //sighandler_t old = curproc->sighandler[signum - 1];
-    curproc->sighandler[signum - 1] = ptr;
+    curproc->sighandler[signum] = ptr;
     return 0;
 }
 
@@ -577,8 +576,8 @@ int sigsend(int pid, int signum){
 
    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
        if (p->pid == pid) {
-           if(p->sigs_awaiting[signum - 1] == 0)
-               p->sigs_awaiting[signum - 1] = 1;
+           if(p->sigs_awaiting[signum] == 0)
+               p->sigs_awaiting[signum] = 1;
            else break;
            release(&ptable.lock);
            return 0; // in case of a successful sent signal
@@ -617,7 +616,7 @@ void check_signals(struct trapframe *tf){
   int sig_num_to_handle = -1;
   for(int i = NUMSIGNALS-1; i >= 0; i--){
       if(p->sigs_awaiting[i] == 1){
-          sig_num_to_handle = i+1;
+          sig_num_to_handle = i;
           break;
       }
   }
@@ -625,17 +624,17 @@ void check_signals(struct trapframe *tf){
 
   // reset this bit in the mask
   //p->pending_signals &= ~(1 << sig_num_to_handle);
-  p->sigs_awaiting[sig_num_to_handle-1] = 0;
+  p->sigs_awaiting[sig_num_to_handle] = 0;
   if(p->sighandler[sig_num_to_handle] == SIG_IGN){
     cprintf("process %d ignores signal\b", p->pid);
     return;
   }
-  if(p->sighandler[sig_num_to_handle] == SIG_DFL) {
+  if(p->sighandler[sig_num_to_handle] == EMPTY_SIG) {
     kernel_default_sig_handler(sig_num_to_handle, p->pid);
     return;
   }
-  //p->executing_signal = 1; // Mark that we are now handling a signal and will not honor any other signal
-  p->executing_signal = sig_num_to_handle; // Mark that we are now handling a specific signal and will not honor any other signal
+  p->executing_signal = 1; // Mark that we are now handling a signal and will not honor any other signal
+  //p->executing_signal = sig_num_to_handle; // Mark that we are now handling a specific signal and will not honor any other signal
 
   memmove(&p->user_backup, p->tf, sizeof(struct trapframe)); // backing up trap frame
   p->tf->esp -= (uint)&invoke_sigret_end - (uint)&invoke_sigret_start;
@@ -647,7 +646,7 @@ void check_signals(struct trapframe *tf){
   p->tf->eip = (uint)p->sighandler[sig_num_to_handle]; // trapret will resume into signal handler
 
   p->executing_signal = 0;
-    p->sigs_awaiting[sig_num_to_handle-1] = 0;
+  p->sigs_awaiting[sig_num_to_handle] = 0;
 
 } // check_signals
 

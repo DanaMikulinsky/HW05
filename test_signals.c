@@ -7,16 +7,20 @@
 
 typedef int pid_t;
 
-
 void my_handler(int sig){
     printf(1,"signal handler called with signal=%d\n", sig);
 }
 
+void parent_only(int sig){
+    printf(1,"our second handler for test\n");
+}
+
+
 // test the simple case: child process registers a handler, the parent signals the child
 void test_simple_handling(){
-     printf(1,"%s starts\n", __FUNCTION__ );
+    printf(1,"%s starts\n", __FUNCTION__ );
+
     int child_pid = fork();
-    //printf(1,"%d\n", child_pid);
     if(child_pid < 0){
         printf(1,"fork failed");
         exit();
@@ -24,7 +28,7 @@ void test_simple_handling(){
     if(child_pid == 0){
         // in child
         signal(SIGHUP, my_handler);
-        for(int i =0; i < 3;i++) {
+        for(int i =0; i < 3; i++) {
             sleep(1);
             printf(1, "child is sleeping\n");
         }
@@ -32,9 +36,8 @@ void test_simple_handling(){
         exit();
     }else {
         // parent
-        sleep(1); // avoid race condition: give the child time to call signal()
+  	sleep(1);
         sigsend(child_pid, SIGHUP); // send the signal type that the child expects
-        //printf(1, "sigsend worked");
         wait();
         printf(1, "parent exiting\n");
     }
@@ -46,6 +49,28 @@ void test_simple_handling(){
 // TODO: Implement this test.
 void test_inheritance(){
     printf(1,"%s starts\n", __FUNCTION__ );
+    signal(SIGHUP, my_handler);
+    int child_pid = fork();
+    if(child_pid < 0){
+        printf(1,"fork failed");
+        exit();
+    }
+    if(child_pid == 0){
+        // in child
+        for(int i =0; i < 3;i++) {
+            sleep(1);
+            printf(1, "child is sleeping\n");
+        }
+        printf(1, "child exiting\n");
+        exit();
+    }else {
+        // parent
+        signal(SIGHUP,parent_only);
+        sigsend(child_pid, SIGHUP);
+        wait();
+        printf(1, "parent exiting\n");
+    }
+
     printf(1,"%s completed\n\n", __FUNCTION__ );
 }
 
@@ -86,7 +111,7 @@ void test_ignore(){
     }
     if(child_pid == 0){
         // in child
-        int ret = signal(SIGTERM, SIG_IGN); // ignore TERMINATE
+       sighandler_t ret = signal(SIGTERM, SIG_IGN); // ignore TERMINATE
        if(ret == SIG_ERR){
            printf(1,"FAILED\n");
            return;
@@ -96,9 +121,7 @@ void test_ignore(){
            printf(1,"FAILED\n");
            return;
        }
-       signal(SIGTERM, SIG_IGN); // ignore TERMINATE
-       signal(SIGSTOP,SIG_IGN); // impossible to ignore SIGSTOP
-        for(int i =0; i < 3;i++) {
+       for(int i =0; i < 3;i++) {
             sleep(1);
             printf(1, "[%d] child is sleeping\n", i);
        }
@@ -116,12 +139,13 @@ void test_ignore(){
 
 void test_bad_value(){
     printf(1,"%s starts\n", __FUNCTION__ );
-    int ret = signal(588,0);
+  /*  sighandler_t ret = signal(588,0);
     if(ret >=0){
         printf(1,"%s: FAIL! signal should fail\n", __FUNCTION__ );
     }
-
-    sigsend(42, SIGALRM);
+  */
+    int non_existing_pid = 42;
+    int ret = sigsend(non_existing_pid, SIGALRM);
     if(ret ==0){
         printf(1,"%s: FAIL! sigsend should fail\n", __FUNCTION__ );
     }
@@ -129,6 +153,7 @@ void test_bad_value(){
 }
 
 int main(int ac, char** av){
+   
     test_simple_handling();
     test_default();
     test_ignore();

@@ -52,9 +52,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  sighandler_t sighandler[NUMSIGNALS+2];      // Signal handler function address
+  sighandler_t sighandler[NUMSIGNALS];      // Signal handler function address
   int executing_signal;        // Currently, handling signals
-  int sigs_awaiting[NUMSIGNALS+2]; // The line of signals to be handeled
+  int sigs_awaiting[NUMSIGNALS]; // The line of signals to be handeled
   //uint backup_mask;
   //uint  pending_signals;        // bitset of signal numbers. sizeof(int)*8 >= NUMSIGNALS
   //uint signal_mask;                 //signal mask
